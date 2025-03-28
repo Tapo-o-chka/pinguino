@@ -6,6 +6,8 @@ The useless TCP chat implementation, with no one asked custom protocol. All mess
 
 **Important**: if you want to actually load test, and you somewhy get unexpectadly low results, try to change `ulimit` to higher than default value.
 
+**IMPORTANT**: This crate is not ready for usage
+
 ## Why is it called that
 As the penguin, `pinguino` is a bird with wings, but wont fly even if you would force it to flap its wings very fast.
 
