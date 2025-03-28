@@ -1,0 +1,37 @@
+[package]
+name = "pinguino"
+version = "0.0.1"
+edition = "2021"
+authors = ["Meatarywe <muzion156@gmail.com>"]
+description = "Basic TCP chat framework with custom protocol"
+readme = "README.md"
+
+[dependencies]
+async-trait = "0.1.87"
+bytes = "1.10.0"
+chrono = { version = "0.4.40", features = ["serde"] }
+clap = { version = "4.5.30", features = ["derive"] }
+clickhouse = { version = "0.13.2", features = ["rustls-tls", "inserter", "chrono", "uuid"] }
+crossterm = "0.28.1"
+num_cpus = "1.16.0"
+once_cell = "1.20.3"
+procfs = "0.17.0"
+ratatui = "0.29.0"
+regex = "1.11.1"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.140"
+socket2 = "0.5.8"
+sysinfo = "0.33.1"
+tokio = { version = "1.43.0", features = ["full"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["json", "fmt"] }
+uuid = { version = "1.15.1", features = ["v4", "serde"] }
+
+[features]
+debug_light = []
+debug_full = ["debug_light"]
+
+[lib]
+name = "pinguino"
+path = "src/lib.rs"
