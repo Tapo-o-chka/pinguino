@@ -1,3 +1,58 @@
+//! ## `Client`
+//! 
+//! `Client` is the key part of `Pinguino` client (lol, how suprising!). It is dependant on the `tokio` and
+//! `socket2` for providing connection to the server. 
+//! 
+//! [`ClientTrait`] - it is not the best trait. I would totaly move it to something like [`wares`], because
+//! it would be much cleaner approach, and user wont be forced to implement parts that he wants to be default.
+//! 
+//! ## Example
+//! ```
+//! let target = match std::net::SocketAddr::from_str("127.0.0.1:8080").unwrap();
+//! 
+//! let mut client = DefaultClient::new(target);
+//! 
+//! println!("Running!");
+//! let token = client.bind("Jeff".to_string()).await.unwrap();
+//! client.handshake(token).await.unwrap();
+//! 
+//! client.send("Hello world!".to_string()).await.unwrap();
+//! 
+//! let sub = client.subscribe().await;
+//! 
+//! tokio::spawn(async move {
+//! let mut reciever = sub.lock().await;
+//! 
+//! // Reading loop
+//! while let Some(message) = reciever.recv().await {
+//!     println!("Got message:\n{0}", message.pretty_string());
+//! }});
+//! 
+//! // Writing loop
+//! loop {
+//!     let mut stdin = BufReader::new(stdin());
+//!     let mut line = String::new();
+//! 
+//!     match stdin.read_line(&mut line).await {
+//!         Ok(0) => {
+//!             println!("EOF reached or no input provided");
+//!         }
+//!         Ok(_) => {}
+//!         Err(e) => {
+//!             eprintln!("Failed to read line: {}", e);
+//!         }
+//!     }
+//!     if line.strip_suffix('\n').unwrap() == "quit" {
+//!         client.terminate().await.unwrap();
+//!         println!("Terminated");
+//!         break;
+//!     }
+//! 
+//!     client.send(line).await.unwrap();
+//! }
+//! ```
+//! 
+//! [`wares`]: crate::protocol::wares
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -10,8 +65,64 @@ use async_trait::async_trait;
 
 use crate::protocol::request::{ParseError, Request};
 use crate::protocol::response::{Response, ResponseCode};
-use crate::protocol::utils::set_keepalive;
+use crate::protocol::set_keepalive;
 
+/// ## `DefaultClient`
+/// 
+/// This is the default implementator of the [`ClientTrait`]. 
+/// 
+/// ## Example
+/// ```
+/// let target = match std::net::SocketAddr::from_str("127.0.0.1:8080").unwrap();
+/// 
+/// let mut client = DefaultClient::new(target);
+/// 
+/// println!("Running!");
+/// let token = client.bind("Jeff".to_string()).await.unwrap();
+/// client.handshake(token).await.unwrap();
+/// 
+/// client.send("Hello world!".to_string()).await.unwrap();
+/// 
+/// let sub = client.subscribe().await;
+/// 
+/// tokio::spawn(async move {
+/// let mut reciever = sub.lock().await;
+/// 
+/// // Reading loop
+/// while let Some(message) = reciever.recv().await {
+///     println!("Got message:\n{0}", message.pretty_string());
+/// }});
+/// 
+/// // Writing loop
+/// loop {
+///     let mut stdin = BufReader::new(stdin());
+///     let mut line = String::new();
+/// 
+///     match stdin.read_line(&mut line).await {
+///         Ok(0) => {
+///             println!("EOF reached or no input provided");
+///         }
+///         Ok(_) => {}
+///         Err(e) => {
+///             eprintln!("Failed to read line: {}", e);
+///         }
+///     }
+///     if line.strip_suffix('\n').unwrap() == "quit" {
+///         client.terminate().await.unwrap();
+///         println!("Terminated");
+///         break;
+///     }
+/// 
+///     client.send(line).await.unwrap();
+/// }
+/// ```
+/// 
+/// ## Changes to be made
+/// 1. make it in the way [`wares`]
+/// 2. add `varmap`. Why it doesnt have `varmap`, but [`Router`] do have in the `state` and `app` fields? 
+/// 
+/// [`wares`]: crate::protocol::wares
+/// [`Router`]: crate::router::Router
 #[derive(Debug)]
 pub struct DefaultClient {
     pub target: SocketAddr,
@@ -22,11 +133,41 @@ pub struct DefaultClient {
     handle: Option<tokio::task::JoinHandle<Result<(), ()>>>
 }
 
-#[allow(dead_code)]
+/// ## `ClientTrait`
+/// 
+/// This trait holds main functions, that any client should have to be fullfilable.
+///
+/// ## Changes to be made
+/// 1. make it in the way [`wares`]
+/// 2. add `varmap`. Why it doesnt have `varmap`, but [`Router`] do have in the `state` and `app` fields?
+///  
+/// ## how it looks in the human way
+/// ```
+/// #[async_trait]
+/// pub trait ClientTrait {
+///     fn new(target: SocketAddr) -> Self;
+/// 
+///     async fn bind(&self, name: String) -> Result<String, ClientError>;
+/// 
+///     async fn handshake(&mut self, token: String) -> Result<(), ClientError>;
+/// 
+///     async fn send(&mut self, message: String) -> Result<(), ClientError>;
+/// 
+///     async fn subscribe(&self) -> Arc<Mutex<UnboundedReceiver<Response>>>;
+/// 
+///     async fn terminate(&mut self) -> Result<(), ClientError>;
+/// }
+/// ```
+/// 
+/// [`wares`]: crate::protocol::wares
+/// [`Router`]: crate::router::Router
+
+pub fn new_client() -> Box<> {
+
+}
+
 #[async_trait]
 pub trait ClientTrait {
-    fn new(target: SocketAddr) -> Self;
-
     async fn bind(&self, name: String) -> Result<String, ClientError>;
 
     async fn handshake(&mut self, token: String) -> Result<(), ClientError>;
@@ -38,20 +179,101 @@ pub trait ClientTrait {
     async fn terminate(&mut self) -> Result<(), ClientError>;
 }
 
+async fn cool(mut stream: TcpStream, out_recieverr: Arc<Mutex<Receiver<Request>>>, in_sender: Arc<UnboundedSender<Response>>) -> Result<(), ()>{
+    let mut out_reciever = out_recieverr.lock().await;
+    let mut read_buf = [0u8; 512];
+    loop {
+        select! {
+            _ = stream.read(&mut read_buf) => {
+                let response = match Response::from_bytes(&read_buf) {
+                    Ok(val) => val,
+                    Err(_e) => {
+                        #[cfg(feature = "debug_light")]
+                        println!("<<< [SUBH] Failed to parse Response from bytes with error {:?}", _e);
+
+                        return Err(());
+                    }
+                };
+                match in_sender.send(response) {
+                    Ok(_) => {
+                        #[cfg(feature = "debug_full")]
+                        println!("--> [SUBH] Sent response to in_sender")
+                    }
+                    Err(_e) => {
+                        #[cfg(feature = "debug_light")]
+                        println!("<<< [SUBH] Failed to send via in_sender with error {_e}");
+                        continue;
+                    }
+                }
+            },
+            val = out_reciever.recv() => {
+                if let Some(val) = val {
+                    let bytes = match val.as_bytes() {
+                        Ok(val) => {
+                            #[cfg(feature = "debug_full")]
+                            println!("--> [SUBH] Parsed recieved request from out_reciever to bytes");
+                            
+                            val
+                        },
+                        Err(_) => {
+                            #[cfg(feature = "debug_light")]
+                            println!("<<< [SUBH] Failed to parse request to bytes recieved from out_reciever");
+                            return Err(());
+                        }
+                    };
+
+                    match stream.write(&bytes).await {
+                        Ok(0) => {
+                            #[cfg(feature = "debug_light")]
+                            println!("<<< [SUBH] Connection closed");
+                            return Err(());
+                        },
+                        Ok(_val) => {
+                            #[cfg(feature = "debug_full")]
+                            println!("--> [SUBH] Wrote {_val} bytes to the server");
+                            continue;
+                        },
+                        Err(_e) => {
+                            #[cfg(feature = "debug_light")]
+                            println!("<<< [SUBH] Error occured while writing request to the server with: {_e}");
+                            return Err(());
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[allow(unused)]
+#[derive(Debug)]
+pub enum ClientError {
+    CouldntConnect(std::io::Error),
+    ClosedConnection,
+    SendingFailed(std::io::Error),
+    ReadingFailed(std::io::Error),
+    ParseError(ParseError),
+    MissingToken,
+    WrongResponseCoce(ResponseCode),
+    InternalError,
+    NoActiveHandle,
+    AlreadyFinished,
+}
+
 #[async_trait]
 impl ClientTrait for DefaultClient {
-    fn new(target: SocketAddr) -> Self {
+    fn new(target: SocketAddr) -> Box<dyn ClientTrait> {
         let (out_sender, out_reciever) = mpsc::channel::<Request>(32);
         let (in_sender, in_reciever) = mpsc::unbounded_channel::<Response>();
 
-        DefaultClient {
+        Box::new(DefaultClient {
             target,
             out_reciever: Arc::new(Mutex::new(out_reciever)),
             out_sender: Arc::new(out_sender),
             in_reciever: Arc::new(Mutex::new(in_reciever)),
             in_sender: Arc::new(in_sender),
             handle: None,
-        }
+        })
     }
 
     async fn bind(&self, name: String) -> Result<String, ClientError> {
@@ -239,85 +461,4 @@ impl ClientTrait for DefaultClient {
 
         Err(ClientError::NoActiveHandle)
     } 
-}
-
-async fn cool(mut stream: TcpStream, out_recieverr: Arc<Mutex<Receiver<Request>>>, in_sender: Arc<UnboundedSender<Response>>) -> Result<(), ()>{
-    let mut out_reciever = out_recieverr.lock().await;
-    let mut read_buf = [0u8; 512];
-    loop {
-        select! {
-            _ = stream.read(&mut read_buf) => {
-                let response = match Response::from_bytes(&read_buf) {
-                    Ok(val) => val,
-                    Err(_e) => {
-                        #[cfg(feature = "debug_light")]
-                        println!("<<< [SUBH] Failed to parse Response from bytes with error {:?}", _e);
-
-                        return Err(());
-                    }
-                };
-                match in_sender.send(response) {
-                    Ok(_) => {
-                        #[cfg(feature = "debug_full")]
-                        println!("--> [SUBH] Sent response to in_sender")
-                    }
-                    Err(_e) => {
-                        #[cfg(feature = "debug_light")]
-                        println!("<<< [SUBH] Failed to send via in_sender with error {_e}");
-                        continue;
-                    }
-                }
-            },
-            val = out_reciever.recv() => {
-                if let Some(val) = val {
-                    let bytes = match val.as_bytes() {
-                        Ok(val) => {
-                            #[cfg(feature = "debug_full")]
-                            println!("--> [SUBH] Parsed recieved request from out_reciever to bytes");
-                            
-                            val
-                        },
-                        Err(_) => {
-                            #[cfg(feature = "debug_light")]
-                            println!("<<< [SUBH] Failed to parse request to bytes recieved from out_reciever");
-                            return Err(());
-                        }
-                    };
-
-                    match stream.write(&bytes).await {
-                        Ok(0) => {
-                            #[cfg(feature = "debug_light")]
-                            println!("<<< [SUBH] Connection closed");
-                            return Err(());
-                        },
-                        Ok(_val) => {
-                            #[cfg(feature = "debug_full")]
-                            println!("--> [SUBH] Wrote {_val} bytes to the server");
-                            continue;
-                        },
-                        Err(_e) => {
-                            #[cfg(feature = "debug_light")]
-                            println!("<<< [SUBH] Error occured while writing request to the server with: {_e}");
-                            return Err(());
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[allow(unused)]
-#[derive(Debug)]
-pub enum ClientError {
-    CouldntConnect(std::io::Error),
-    ClosedConnection,
-    SendingFailed(std::io::Error),
-    ReadingFailed(std::io::Error),
-    ParseError(ParseError),
-    MissingToken,
-    WrongResponseCoce(ResponseCode),
-    InternalError,
-    NoActiveHandle,
-    AlreadyFinished,
 }

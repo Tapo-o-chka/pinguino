@@ -1,3 +1,28 @@
+//! ## `Response`
+//! 
+//! Suprisingly, this module holds all logic needed for handling and operating Responses.
+//! Most of the time you would interact with [`ResponseBuilder`] and [`ResponseCode`].
+//! Its recomended to go through examples and some comments on for each struct, but here is
+//! a small overview:
+//! 
+//! ## `Response` (yeah, second response, inside of `##`, bad, but idk how to chang it in the better way.)
+//! 
+//! The `Response` is what `Client` get after doing request to the server or
+//! during `Handshake`, when it gets messages from other clients.
+//! 
+//! ## Example
+//! 
+//! ```
+//! let response = ResponseBuilder::default()
+//!     .custom_insert("Header".to_string(), "Cool value".to_string())
+//!     .build()
+//!     .unwrap();
+//! 
+//! println!("Look how pretty is my response! {0}", response.pretty_string());
+//! 
+//! let res_bytes = response.as_bytes();
+//! match stream.write(&res_bytes).await {...}
+//! ```
 use crate::protocol::request::Version;
 use crate::protocol::varmap::Varmap;
 use core::str;
@@ -73,7 +98,96 @@ use chrono::{DateTime, Utc, NaiveDateTime, TimeZone};
     ```
 */
 
-#[allow(dead_code)]
+/// ## `Response`
+/// `Response` is the struct, that is activelly involded in [`Client`] and [`wares`] 
+/// in recieving response from the server, and sending forming the response to the client.
+/// 
+/// ## Examples
+/// 
+/// ### Building basic response
+/// ```
+/// // Lets say, that the server processed the `Send` message from user Jeff.
+/// // Jeff sent message "Hello world!" and now we are forming response to
+/// // all client.
+/// let response = ResponseBuilder::new()
+///     .version(Version::CHAT10)
+///     .code(ResponseCode::OK)
+///     .user("Jeff".to_string())
+///     .message("Hello world!".to_string())
+///     .build()
+///     .unwrap();
+/// ```
+/// This response is equal to:
+/// ```txt
+/// <CHAT \ 1.0>
+/// <Code@10>
+/// <User@Jeff>
+/// <Message@'Hello world'>
+/// ```
+/// 
+/// ### Building response with custom header
+/// ```
+/// // Lets say that we still have Jeff with his message.
+/// // Now we want to tell his time zone (idk why)
+/// let response = ResponseBuilder::new()
+///     .version(Version::CHAT10)
+///     .code(ResponseCode::OK)
+///     .user("Jeff".to_string())
+///     .message("Hello world!".to_string())
+///     .insert("Timezone".to_string(), "UTC+3".to_string())
+///     .build()
+///     .unwrap(); 
+/// // It will panic, if Parse rules would be violated.
+/// // So dont put any words in `Header` with spaces inside.
+/// ```
+/// This response is equal to:
+/// ```txt
+/// <CHAT \ 1.0>
+/// <Code@10>
+/// <User@Jeff>
+/// <Message@'Hello world'>
+/// <Timezone@'UTC+3'>
+/// ```
+/// **Attention** There is not guarantee, in which order custom headers
+/// would be added to the response line.
+/// 
+/// ### Printing `Response`
+/// If you want to see, how your `Response` is looking in a string - 
+/// use .pretty_string(). But if you are using custom headers, there
+/// is not guarantee, that it would print those custom headers in
+/// the same order.
+/// ```
+/// let response = ResponseBuilder::new()
+///     .version(Version::CHAT10)
+///     .code(ResponseCode::OK)
+///     .user("Jeff".to_string())
+///     .message("Hello world!".to_string())
+///     .build()
+///     .unwrap();
+/// 
+/// println!("Look at my cool response! {0}", response.pretty_string())
+/// ```
+/// 
+/// ### Prepairing `Response` for writing
+/// ```
+/// let response = ResponseBuilder::new()
+///     .version(Version::CHAT10)
+///     .code(ResponseCode::OK)
+///     .user("Jeff".to_string())
+///     .message("Hello world!".to_string())
+///     .build()
+///     .unwrap()
+///     .as_bytes() // Here it may panic, if message is > 512 u8 bytes.
+///     .unwrap();
+/// ```
+/// 
+/// ## Purpose of the [`Varmap`] here
+/// 
+/// For example, you want to add sticky note to the `Response`. Cool, isnt it? But i agree, kinda expensive, 
+/// and even so, most of the time `Response` is used in the environment, which already holds [`Varmap`]
+/// 
+/// [`Client`]: crate::client
+/// [`wares`]: crate::protocol::wares
 #[derive(Debug, Clone)]
 pub struct Response {
     pub code: ResponseCode,
@@ -86,7 +200,72 @@ pub struct Response {
     pub varmap: Option<Varmap>,
 }
 
-#[allow(dead_code)]
+/// ## `ResponseBuilder`
+/// This struct is a Builder pattern for [`Response`] creation.
+/// 
+/// ## Examples
+/// 
+/// ### Building basic response
+/// ```
+/// // Lets say, that the server processed the `Send` message from user Jeff.
+/// // Jeff sent message "Hello world!" and now we are forming response to
+/// // all client.
+/// let response = ResponseBuilder::new()
+///     .version(Version::CHAT10)
+///     .code(ResponseCode::OK)
+///     .user("Jeff".to_string())
+///     .message("Hello world!".to_string())
+///     .build()
+///     .unwrap();
+/// ```
+/// This response is equal to:
+/// ```txt
+/// <CHAT \ 1.0>
+/// <Code@10>
+/// <User@Jeff>
+/// <Message@'Hello world'>
+/// ```
+/// 
+/// ### Building response with custom header
+/// ```
+/// // Lets say that we still have Jeff with his message.
+/// // Now we want to tell his time zone (idk why)
+/// let response = ResponseBuilder::new()
+///     .version(Version::CHAT10)
+///     .code(ResponseCode::OK)
+///     .user("Jeff".to_string())
+///     .message("Hello world!".to_string())
+///     .insert("Timezone".to_string(), "UTC+3".to_string())
+///     .build()
+///     .unwrap(); 
+/// // It will panic, if Parse rules would be violated.
+/// // So dont put any words in `Header` with spaces inside.
+/// ```
+/// This response is equal to:
+/// ```txt
+/// <CHAT \ 1.0>
+/// <Code@10>
+/// <User@Jeff>
+/// <Message@'Hello world'>
+/// <Timezone@'UTC+3'>
+/// ```
+/// **Attention** There is not guarantee, in which order custom headers
+/// would be added to the response line.
+/// 
+/// ### Using default
+/// This will generate `ResponseBuilder` with `code` field set to `ResponseCode::OK`
+/// and `version` field set to the `Version::CHAT10`
+/// ```
+/// let response = ResponseBuilder::defualt()
+///     .build()
+///     .unwrap();
+/// ```
+/// 
+/// ## Purpose of the [`Varmap`] here
+/// 
+/// For example, you want to add sticky note to the `Response`. Cool, isnt it? But i agree, kinda expensive, 
+/// and even so, most of the time `Response` is used in the environment, which already holds [`Varmap`].
+/// Varmap of the `ResponseBuilder` would be transfered to the `Response`
 #[derive(Debug, Clone)]
 pub struct ResponseBuilder {
     pub code: Option<ResponseCode>,
@@ -99,7 +278,33 @@ pub struct ResponseBuilder {
     pub varmap: Option<Varmap>,
 }
 
-#[allow(dead_code)]
+/// ## `ResponseCode`
+/// This enum is useful for not bringing around "<Code@Something" strings here and there.
+/// 
+/// ## Examples
+/// 
+/// ### Just using any built-in thingy
+/// ```
+/// let response = ResponseBuilder::new()
+///     .version(Version::CHAT10)
+///     .code(ResponseCode::OK)
+///     .build()
+///     .unwrap();
+/// ```
+/// 
+/// ### Translating to string
+/// ```
+/// let code = ResponseCode::OK;
+/// 
+/// println!("ResponseCode::OK: {0}", code.to_string());
+/// ```
+/// 
+/// ### Translating from str
+/// ```
+/// let code_line = "<Code@10>";
+/// 
+/// println!("ResponseCode: {:?}", ResponseCode::from_str(code_line));
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResponseCode {
     OK,             // <Code@10> (general good)
@@ -114,15 +319,26 @@ pub enum ResponseCode {
     Custom(u8),     // <Code@{val}> 
 }
 
-#[allow(dead_code)]
+/// ## `BuilderError`
+/// 
+/// Well, this enum is for representing [`ResponseBuilder`] errors...
+/// Maybe i should convert it into `anyhow` error, but for now it works like a charm 
 #[derive(Debug, Clone)]
 pub enum BuilderError {
     NoVersion,
     NoCode,
 }
 
-#[allow(dead_code)]
 impl ResponseBuilder {
+    /// ## Example
+    /// 
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn new() -> Self {
         Self {
             code: None,
@@ -136,36 +352,114 @@ impl ResponseBuilder {
         }
     }
 
+    /// Setter for `version` field
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn version(mut self, version: Version) -> Self {
         self.version = Some(version);
         self
     }
 
+    /// Setter for `code` field
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn code(mut self, code: ResponseCode) -> Self {
         self.code = Some(code);
         self
     }
 
+    /// Setter for `token` field
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .token("123456789") // Expecting uuid::v4 as a token tho. 
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn token(mut self, token: String) -> Self {
         self.token = Some(token);
         self
     }
 
+    /// Setter for `user` field
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .user("Jeff".to_string())
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn user(mut self, user: String) -> Self {
         self.user = Some(user);
         self
     }
 
+    /// Setter for `time` field
+    /// 
+    /// ## Example
+    /// ```
+    /// use chrono::Utc;
+    /// 
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .time(Utc::now())
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn time(mut self, time: DateTime<Utc>) -> Self {
         self.time = Some(time);
         self
     }
 
+    /// Setter for `message` field
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .user("Jeff".to_string())
+    ///     .message("Hello world!".to_string())
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn message(mut self, message: String) -> Self {
         self.message = Some(message);
         self
     }
 
+    /// Insert for `varmap` field
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .varmap_insert("Sticky message")
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn varmap_insert<T: Any + Send + Sync>(mut self, value: T) -> Self {
         self.varmap = if let Some(mut varmap) = self.varmap {
             varmap.insert(value);
@@ -178,21 +472,73 @@ impl ResponseBuilder {
         self
     }
 
+    /// Init'er for `custom` field (`custom` is the header HashMap)
+    /// 
+    /// Why do i need this function, if custom inserter insert by its own?
+    /// No idea.
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .custom_init()
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn custom_init(mut self) -> Self {
         self.custom = Some(HashMap::new());
         self
     }
 
+    /// Insert for `custom` field (`custom` is the header Hashmap)
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .custom_insert("Header".to_string(), "Value".to_string())
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn custom_insert(mut self, key: String, value: String) -> Self {
         self.custom.get_or_insert_with(HashMap::new).insert(key, value);
         self
     }
 
+    /// Setter for `version` field
+    /// 
+    /// ## Example
+    /// ```
+    /// let mut prepared_headers = HashMap::new();
+    /// 
+    /// prepared_header.insert("Header1".to_string(), "Value1".to_string());
+    /// prepared_header.insert("Header2".to_string(), "Value2".to_string());
+    /// prepared_header.insert("Header3".to_string(), "Value3".to_string());
+    /// 
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .custom_replace(prepared_headers)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn custom_replace(mut self, custom: HashMap<String, String>) -> Self {
         self.custom = Some(custom);
         self
     }
 
+    /// Build to get [`Response`]
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::new()
+    ///     .version(Version::CHAT10)
+    ///     .code(ResponseCode::OK)
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn build(self) -> Result<Response, BuilderError> {
         if let Some(code) = self.code {
             if let Some(version) = self.version {
@@ -214,6 +560,7 @@ impl ResponseBuilder {
     }
 }
 
+/// Almost forgot about its existance
 impl Default for ResponseBuilder {
     fn default() -> Self {
         Self {
@@ -229,9 +576,25 @@ impl Default for ResponseBuilder {
     }
 }
 
-#[allow(dead_code)]
 impl Response {
+    /// ## Response::from_bytes(read_buf)
+    /// This function, is for retrieving `Response` out of `[u8; 512]`.
+    /// This function should be used on the [`Client`] side
+    /// ## Example
+    /// ```
+    /// // Lets say that we have some function that translates
+    /// // String to the [u8; 512].
+    /// let line = string_to_bytes("<CHAT \\ 1.0>\n<Code@10>\n<User@\"Jeff\">\n<Message@\"Hello world!\">".to_string());
+    /// 
+    /// let response = Response::from_bytes(read_buf).unwrap();
+    /// println!("Look what i got: {:?}", response);
+    /// ```
+    /// 
+    /// **IMPORTANT** THE READ_BUF SHOULD BE UTF-8 PARSABLE 
+    /// 
+    /// [`Client`]: crate::client
     pub fn from_bytes(read_buf: &[u8; 512]) -> Result<Response, ParseError> {
+        // We have Regex based parsing here, so its important for us to parse into &str
         let response = match str::from_utf8(read_buf) {
             Ok(val) => val.trim_end_matches('\0'),
             Err(_) => {
@@ -239,8 +602,10 @@ impl Response {
             }
         };
 
+        // Its much easier to work with it by turning into Lines
         let mut lines = response.lines();
 
+        // Its guaranteed, that Version and Code are at the first and second lines respectivly.
         let version = extract_version(&mut lines)?;
         let code = extract_code(&mut lines)?;
 
@@ -293,6 +658,7 @@ impl Response {
                 }
             }
 
+            // If we didnt manage to find any presetted header - just insert it into custom field.
             let (key, value) = match parse_key_value(line) {
                 Ok(val) => val,
                 Err(e) => {
@@ -307,8 +673,20 @@ impl Response {
         Ok(response.build().unwrap())
     }
 
+    /// ## Response::pretty_string(&self)
+    /// 
+    /// This function is for debugging, how would response look like in protocol format.
+    /// 
+    /// ## Example
+    /// ```
+    /// let response = ResponseBuilder::default()
+    ///     .build()
+    ///     .unwrap();
+    /// 
+    /// println!("Look how pretty is my response!!! {0}", response.pretty_string());
+    /// ```
     pub fn pretty_string(&self) -> String {
-        let mut response_line = format!("<CHAT \\ {0}>\n{1}", self.version.to_str(), self.code.to_str());
+        let mut response_line = format!("<CHAT \\ {0}>\n{1}", self.version.to_str(), self.code.to_string());
 
         if let Some(token) = &self.token {
             response_line += &format!("\n<Token@'{token}'>");
@@ -331,8 +709,23 @@ impl Response {
         response_line
     }
     
+    /// ## Response::as_bytes(&self)
+    /// 
+    /// This functions turns `Response` into valid bytes, that are ready to send to the client/clients.
+    /// 
+    /// ## Example
+    /// 
+    /// ```
+    /// let response = ResponseBuilder::default()
+    ///     .build()
+    ///     .unwrap();
+    /// 
+    /// let res_bytes = response.as_bytes().unwrap();
+    /// 
+    /// match stream.write(&res_bytes).await {...}
+    /// ```
     pub fn as_bytes(&self) -> Result<[u8; 512], ()> {
-        let mut response_line = format!("<CHAT \\ {0}>\n{1}", self.version.to_str(), self.code.to_str());
+        let mut response_line = format!("<CHAT \\ {0}>\n{1}", self.version.to_str(), self.code.to_string());
 
         if let Some(token) = &self.token {
             response_line += &format!("\n<Token@'{token}'>");
@@ -358,26 +751,6 @@ impl Response {
 
         let bytes = string_to_bytes(response_line);
         Ok(bytes)
-    }
-}
-
-impl FromStr for ResponseCode {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match extract_val(s) {
-            Some(10) => Ok(ResponseCode::OK),
-            Some(11) => Ok(ResponseCode::AuthOK),
-            Some(20) => Ok(ResponseCode::ParseError),
-            Some(21) => Ok(ResponseCode::InvalidName),
-            Some(22) => Ok(ResponseCode::AlreadyTaken),
-            Some(23) => Ok(ResponseCode::InvalidHeader),
-            Some(24) => Ok(ResponseCode::Unauthorized),
-            Some(30) => Ok(ResponseCode::Error),
-            Some(31) => Ok(ResponseCode::FatalError),
-            Some(val) => Ok(ResponseCode::Custom(val)),
-            None => Err(()),
-        }
     }
 }
 
@@ -464,15 +837,8 @@ fn extract_message(line: &str) -> Result<String, ParseError> {
     return Err(ParseError::NotFound)
 }
 
-fn extract_val(input: &str) -> Option<u8> {
-    input.strip_prefix("<Code@")?
-         .strip_suffix(">")?
-         .parse::<u8>()
-         .ok()
-}
-
 impl ResponseCode {
-    pub fn to_str(&self) -> String {
+    pub fn to_string(&self) -> String {
         match self {
             ResponseCode::OK            => "<Code@10>".to_string(),
             ResponseCode::AuthOK        => "<Code@11>".to_string(),
@@ -488,7 +854,43 @@ impl ResponseCode {
     }
 }
 
-// Utils
+impl FromStr for ResponseCode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match extract_val(s) {
+            Some(10) => Ok(ResponseCode::OK),
+            Some(11) => Ok(ResponseCode::AuthOK),
+            Some(20) => Ok(ResponseCode::ParseError),
+            Some(21) => Ok(ResponseCode::InvalidName),
+            Some(22) => Ok(ResponseCode::AlreadyTaken),
+            Some(23) => Ok(ResponseCode::InvalidHeader),
+            Some(24) => Ok(ResponseCode::Unauthorized),
+            Some(30) => Ok(ResponseCode::Error),
+            Some(31) => Ok(ResponseCode::FatalError),
+            Some(val) => Ok(ResponseCode::Custom(val)),
+            None => Err(()),
+        }
+    }
+}
+
+// Special function needed for impl FromStr ResponseCode
+fn extract_val(input: &str) -> Option<u8> {
+    input.strip_prefix("<Code@")?
+         .strip_suffix(">")?
+         .parse::<u8>()
+         .ok()
+}
+
+/// Do i need to move it to utils?
+/// This function is for feading `String` to `[u8; 512]`.
+/// Why do i need that one? Because im using `[u8; 512]` and
+/// I didnt manage to find any human way to translate `String`
+/// to the `[u8; 512]`
+/// 
+/// Made it public, so people can use it in [`StartingBytesware`]
+/// 
+/// [`StartingBytesware`]: crate::protocol::wares::starting_bytesware
 pub fn string_to_bytes(input: String) -> [u8; 512] {
     let mut buffer = [0u8; 512]; 
     let bytes = input.as_bytes();

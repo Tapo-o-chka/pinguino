@@ -48,7 +48,7 @@
 //! [`Middleware`]: crate::protocol::wares::Middleware
 //! [`RouterBuilder`]: crate::router::RouterBuilder
 //! [`Router`]: crate::router::Router
-//! [`Varmap`]: crate::protocol::varmap
+//! [`Varmap`]: crate::protocol::Varmap
 
 use crate::protocol::wares::Route;
 use tokio::sync::Mutex;
@@ -56,7 +56,7 @@ use tokio::net::TcpListener;
 use tokio::sync::{mpsc, broadcast};
 use std::any::Any;
 use std::sync::Arc;
-use crate::protocol::varmap::Varmap;
+use crate::protocol::Varmap;
 use crate::protocol::wares::{BeforeConnect, AfterConnect};
 use crate::protocol::wares::{{starting_bytesware, middleware, ending_bytesware}, StartingBytesware, Middleware, EndingBytesware};
 

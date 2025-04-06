@@ -1,8 +1,9 @@
 use socket2::Socket;
 use tokio::net::TcpStream;
 use std::time::Duration;
-use clap::Parser;
 
+/// This function is used to start `Handshake`.
+/// I believe there i a better way to do it, but still, it just works.
 pub async fn set_keepalive(stream: TcpStream) -> std::io::Result<TcpStream> {
     let std_stream = stream.into_std()?; // Get the standard TcpStream
     let socket = Socket::from(std_stream);
@@ -12,15 +13,4 @@ pub async fn set_keepalive(stream: TcpStream) -> std::io::Result<TcpStream> {
 
     let stream = TcpStream::from_std(socket.into())?; // Convert back to Tokio TcpStream
     Ok(stream)
-}
-
-#[derive(Debug, Parser, Clone)]
-#[command(author, version, about, long_about = None)]
-pub struct Args {
-    #[arg(short, long, default_value = "127.0.0.1")]
-    pub ip: String,
-    #[arg(short, long, default_value = "8080")]
-    pub port: String,
-    #[arg(short, long, default_value = "1")]
-    pub mode: String,
 }

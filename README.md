@@ -94,8 +94,10 @@ You can use neither, or one of them. There is no point of including both of them
 ## How this crate is intended to be used
 ~~*It doesnt, but still.*~~ Developers can use this crate as some sort of *framework* to create custom 
 
-## Current achievements (What am I proud of)
-### Latest load test:
+## Contribution
+If you found grammatic mistakes, logical issues, something aint working (highly including the examples) or you want to suggest something - you are more then welcome to write open `issue`, thank you.
+
+## Latest load test:
 On Ryzen 5800x cpu I managed to get up to 900 concurent clients without errors / lost clients, and up to 1240 clients without being Lagged by tokio MPSC / broadcast channels. *it is 1240 senders * 1240 recievers every 1200 ms*
 
 ## Goals
@@ -103,7 +105,13 @@ On Ryzen 5800x cpu I managed to get up to 900 concurent clients without errors /
 - Move [u8; 512] to Bytes with capacity 512
 - Add custom rooms
 - Add built-in tools (such as rate limiting)
+- Make better docs
+- Add logical support for other request methods
+- JS client
+- tests
 
 ## Questions
 - Lib provided tracing for errors (in addition to Debug modes) is needed? What info is needed?
 - Is there need for custom request parser written with `nom` for example, instead of regex?
+- Is the reconnect feature needed?
+- Should there be time period, after which, if there were no messages, `Handshake` will break?

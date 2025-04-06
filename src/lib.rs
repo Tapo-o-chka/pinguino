@@ -100,5 +100,4 @@ pub mod protocol;
 pub mod app;
 pub mod client;
 pub mod tests;
-pub mod logging;
 pub mod router;

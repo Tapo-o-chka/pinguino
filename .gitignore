@@ -1,2 +1,5 @@
 /target
+/src/logging/
+/src/app/
 Cargo.lock
+todo

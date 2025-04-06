@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use uuid::Uuid;
-use crate::protocol::varmap::Varmap;
+use crate::protocol::Varmap;
 
 /// This things is subfield of the [`State`]. But  `App` is actually app state, and [`State`] is connection state.
 /// I dont know on what i was while writing it.
@@ -16,12 +16,20 @@ use crate::protocol::varmap::Varmap;
 /// ## Example
 /// 
 /// ```
+/// 
+/// // Lets say that we inserted some value 
+/// {
+///     let router = RouterBuilder::new()
+///         .insert("Cool message")
+///         .build();
+/// }
+/// 
 /// impl Middleware for DefaultMiddleware {
 ///     async fn middleware(&self, req: Request, state: Arc<Mutex<State>>) -> Result<Response, Response> {
 ///         let state = state.lock().await;
 ///         let name = &req.value;
 ///
-///         // TWO LOCKS IS CRAZY.
+///         // This is example for Bind middleware needs
 ///         let _ = match state.app.lock().await.register(name.clone()) {
 ///             Ok(token) => {
 ///                 return Ok(ResponseBuilder::new()
@@ -41,6 +49,10 @@ use crate::protocol::varmap::Varmap;
 ///                 );
 ///             }
 ///         };
+/// 
+///         if let Some(message) = state.app.lock().await.get::<&str>() {
+///             println!("There was the message! {:?}", message);
+///         }
 ///     }
 /// }
 /// ```

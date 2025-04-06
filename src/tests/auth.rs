@@ -1,7 +1,7 @@
 //! # Tests for basic auth
 
 use crate::{
-    client::{ClientTrait, DefaultClient},
+    client::{C, DefaultClient},
     router::RouterBuilder
 };
 use std::{
