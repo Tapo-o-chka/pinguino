@@ -84,6 +84,29 @@ async fn main() {
     }
 }
 ```
+//! let bind_request_line = "<CHAT \\ 1.0>\n<Method@Bind>\n<Name@Jeff>";
+//! let handshake_request_line = "<CHAT \\ 1.0>\n<Method@Handshake>\n<Authorization@'0123456789ABCDEF'>";
+//! let send_request_line = "<CHAT \\ 1.0>\n<Method@Send>\n<Message@'Hello world!'>";
+### Protocol example
+**Bind**
+```txt
+<CHAT \ 1.0>
+<Method@Bind>
+<Name@'Jeff'>
+```
+**Handshake**
+```txt
+<CHAT \ 1.0>
+<Method@Handshake>
+<Authorization@'00000000-0000-0000-0000-000000000000'>
+```
+
+**Send**
+```txt
+<CHAT \ 1.0>
+<Method@Send>
+<Message@'Hello world!'>
+```
 
 ## Features
 - `["debug_light"]` - adding built-in debug messages (via println!()) for errors and when connection is started / closed.
