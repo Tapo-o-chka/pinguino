@@ -32,6 +32,8 @@ It was measured via `sysinfo` library.
 The hardware this exact test was ran on - ryzen 5800x, 32gb 3200 mhz ddr4.
 
 ## Test results 
+![Cool image](./stress_test.png)
+
 Managed to get up to 1200 clients inside of one room, that were writing every 1.2ms and recieving messages from **all** of the other clients. Average latency was around 24. minimum latency was beween 0 and 1 **MICRO** second (because of how poorely was latency measured i guess), maximum latency was around 8ms by graph, but i remember there was one with 32ms.
 
 This test was more of the cool thing to do - setting prometheus, grafana and clickhouse was very fun, but i need to learn observability first, before ever doing it again.
